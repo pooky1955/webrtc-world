@@ -43,6 +43,11 @@ io.on('connection', socket => {
     socket.to(toId).emit("answer",fromId,answer)
   })
 
+  socket.on("ice candidate",(fromId,toId,iceCandidate) => {
+    trace(`received ice candidate from ${fromId} to ${toId} with ${iceCandidate}`)
+    socket.to(toId).emit("ice candidate",fromId,iceCandidate)
+  })
+
 });
 
 httpServer.listen(3000, () => {

@@ -17,6 +17,9 @@ async function getVideoStream(){
 function trace(message){
   console.log(`[INFO]: ${message}`)
 }
+function traceObject(object){
+  console.log(object)
+}
 function showMessage(message){
   let newChild = document.createTextNode(message)
   document.querySelector("div.message-logs").appendChild(newChild)
@@ -39,11 +42,14 @@ function showMessage(message){
       trace(`received ids of ${ids}`)
       offers = await Promise.all(ids.map(id => {
         const pc = getLocalConnection()
+        pc.addEventListener("icecandidate", createIceCandidateHandler(socket,id))
         connections[id] = pc
         addVideoStream(pc, videoStream)
         return pc.createOffer()
       }))
       trace(`calculated offers: ${offers}`)
+      trace(`here are connections below`)
+      traceObject(connections)
 
       zip([ids,offers]).map(([id,offer]) => {
         trace(`zipping at id ${id} and offer ${offer}`)
@@ -58,10 +64,17 @@ function showMessage(message){
     trace(`received offer from ${fromId} with ${offer}`)
     let pc = connections[fromId]
     const rtcOffer = new RTCSessionDescription(offer) // just transforms it into the correct class
-    pc.setRemoteDescription(rtcOffer)
+    if (fromId in connections){
+      pc.setRemoteDescription(rtcOffer)
+    }
     let answer = await pc.createAnswer()
     socket.emit("answer",socket.id,fromId,answer)
     trace(`sent answer from ${socket.id} to ${fromId} with ${answer}`)
+  })
+
+  socket.on("ice candidate",async (fromId,iceCandidate) => {
+    const rtcCandidate = new RTCIceCandidate(iceCandidate)
+    connections[fromId].addIceCandidate(rtcCandidate)
   })
 
   socket.on("answer",(fromId,answer) => {
@@ -71,4 +84,5 @@ function showMessage(message){
     pc.setRemoteDescription(rtcAnswer)
     trace(`set remote description to ${answer}`)
   })
+
 })()
