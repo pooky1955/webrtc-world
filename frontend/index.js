@@ -5,14 +5,27 @@ if (roomName === null || roomName == ""){
 }
 
 //a mapping from other's people socket id to the their dedicated peer connection
-const connections = {
-
-}
+const connections = {}
+const streams = {}
+const offerOptions = {
+  offerToReceiveVideo: true,
+  offerToReceiveAudio : true
+};
 
 const sel = (selector) => document.querySelector(selector)
 const zip= rows=>rows[0].map((_,c)=>rows.map(row=>row[c]))
 async function getVideoStream(){
     return navigator.mediaDevices.getUserMedia(mediaConstraints)
+}
+const createAddRemoteStreamHandler = (toId) => (e) => {
+  trace(`Remote stream added from ${toId}`);
+  const remoteStream = e.stream;
+  streams[toId] = remoteStream
+  const videoElement = document.createElement("video")
+  sel("div.video-container").appendChild(videoElement)
+  videoElement.srcObject = remoteStream
+  videoElement.autoplay = true
+  videoElement.id = toId
 }
 function trace(message){
   console.log(`[INFO]: ${message}`)
@@ -25,6 +38,24 @@ function showMessage(message){
   document.querySelector("div.message-logs").appendChild(newChild)
 }
 
+const createIceChangeHandler = (toId) => (event) => {
+  const pc = event.target
+  trace(`ICE state change for ${toId} event`);
+  trace(`${toId} ICE state: ${pc.iceConnectionState}`);
+  traceObject(event)
+}
+
+function initPC(socket,id,videoStream){
+  const pc = getLocalConnection()
+  pc.addEventListener("icecandidate", createIceCandidateHandler(socket,id))
+  pc.onaddstream = createAddRemoteStreamHandler(id)
+  pc.addEventListener('iceconnectionstatechange', createIceChangeHandler(id));
+  trace(`creating offer for id ${id}`)
+  connections[id] = pc
+  addVideoStream(pc, videoStream)
+  return pc
+}
+
 (async function(){
   const videoStream = await getVideoStream()
   sel("video#local-video").srcObject = videoStream
@@ -34,18 +65,15 @@ function showMessage(message){
   socket.emit("join create room",roomName)
   socket.on("participants",async (ids) => {
     trace(`participants: ${ids}`)
-    if (ids === null){
+    if (ids.length === 0){
       // nobody is here
-      trace("ids null, nobody is here")
+      trace("ids length of 0, nobody is here")
       showMessage("you're the only one here!")
     } else {
       trace(`received ids of ${ids}`)
       offers = await Promise.all(ids.map(id => {
-        const pc = getLocalConnection()
-        pc.addEventListener("icecandidate", createIceCandidateHandler(socket,id))
-        connections[id] = pc
-        addVideoStream(pc, videoStream)
-        return pc.createOffer()
+        const pc = initPC(socket, id, videoStream)
+        return pc.createOffer(offerOptions)
       }))
       trace(`calculated offers: ${offers}`)
       trace(`here are connections below`)
@@ -63,6 +91,10 @@ function showMessage(message){
   socket.on("offer",async (fromId,offer) => {
     trace(`received offer from ${fromId} with ${offer}`)
     let pc = connections[fromId]
+    if (!(fromId in connections)){
+      trace(`creating new connection for offer from ${fromId}`)
+      pc = initPC(socket, fromId, videoStream)
+    }
     const rtcOffer = new RTCSessionDescription(offer) // just transforms it into the correct class
     if (fromId in connections){
       pc.setRemoteDescription(rtcOffer)
@@ -73,6 +105,7 @@ function showMessage(message){
   })
 
   socket.on("ice candidate",async (fromId,iceCandidate) => {
+    trace(`received ice candidate from ${fromId} of ${iceCandidate}`)
     const rtcCandidate = new RTCIceCandidate(iceCandidate)
     connections[fromId].addIceCandidate(rtcCandidate)
   })
