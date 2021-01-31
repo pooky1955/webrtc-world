@@ -30,18 +30,28 @@ const createAddRemoteStreamHandler = (toId) => (e) => {
 function trace(message){
   console.log(`[INFO]: ${message}`)
 }
+
+function traceImportant(message){
+  const style = [
+    'text-decoration : bold',
+    'font-size : 14px',
+    'font-weight : 800'
+  ].join(";")
+  console.log(`%c[IMPORTANT]: ${message}`,style)
+}
 function traceObject(object){
   console.log(object)
 }
 function showMessage(message){
-  let newChild = document.createTextNode(message)
-  document.querySelector("div.message-logs").appendChild(newChild)
+  let newChild = document.createElement("li")
+  newChild.textContent = message
+  sel("ol.message-logs").appendChild(newChild)
 }
 
 const createIceChangeHandler = (toId) => (event) => {
   const pc = event.target
-  trace(`ICE state change for ${toId} event`);
-  trace(`${toId} ICE state: ${pc.iceConnectionState}`);
+  traceImportant(`ICE state change for ${toId} event`);
+  traceImportant(`${toId} ICE state: ${pc.iceConnectionState}`);
   traceObject(event)
 }
 
@@ -64,6 +74,7 @@ function initPC(socket,id,videoStream){
   trace("asked to join room")
   socket.emit("join create room",roomName)
   socket.on("participants",async (ids) => {
+    showMessage(`socket id : ${socket.id}`)
     trace(`participants: ${ids}`)
     if (ids.length === 0){
       // nobody is here
@@ -88,6 +99,7 @@ function initPC(socket,id,videoStream){
       })
     }
   })
+
   socket.on("offer",async (fromId,offer) => {
     trace(`received offer from ${fromId} with ${offer}`)
     let pc = connections[fromId]
@@ -96,16 +108,15 @@ function initPC(socket,id,videoStream){
       pc = initPC(socket, fromId, videoStream)
     }
     const rtcOffer = new RTCSessionDescription(offer) // just transforms it into the correct class
-    if (fromId in connections){
-      pc.setRemoteDescription(rtcOffer)
-    }
+    pc.setRemoteDescription(rtcOffer)
     let answer = await pc.createAnswer()
+    pc.setLocalDescription(answer)
     socket.emit("answer",socket.id,fromId,answer)
     trace(`sent answer from ${socket.id} to ${fromId} with ${answer}`)
   })
 
-  socket.on("ice candidate",async (fromId,iceCandidate) => {
-    trace(`received ice candidate from ${fromId} of ${iceCandidate}`)
+  socket.on("ice candidate",(fromId,iceCandidate) => {
+    traceImportant(`received ice candidate from ${fromId} of ${iceCandidate}`)
     const rtcCandidate = new RTCIceCandidate(iceCandidate)
     connections[fromId].addIceCandidate(rtcCandidate)
   })
@@ -115,7 +126,7 @@ function initPC(socket,id,videoStream){
     let pc = connections[fromId]
     const rtcAnswer = new RTCSessionDescription(answer)
     pc.setRemoteDescription(rtcAnswer)
-    trace(`set remote description to ${answer}`)
+    trace(`set remote description to ${rtcAnswer}`)
   })
 
 })()

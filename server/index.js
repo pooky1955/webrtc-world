@@ -45,6 +45,7 @@ io.on('connection', socket => {
 
   socket.on("ice candidate",(fromId,toId,iceCandidate) => {
     trace(`received ice candidate from ${fromId} to ${toId} with ${iceCandidate}`)
+    console.log(iceCandidate)
     socket.to(toId).emit("ice candidate",fromId,iceCandidate)
   })
 
