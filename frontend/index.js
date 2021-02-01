@@ -1,4 +1,4 @@
-const mediaConstraints = {video : true, audio : false}
+const mediaConstraints = {video : true, audio : true}
 const roomName = new URLSearchParams(window.location.search).get("r")
 if (roomName === null || roomName == ""){
   window.location.href = "?r=globalroom"
