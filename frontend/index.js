@@ -28,7 +28,13 @@ const createAddRemoteStreamHandler = (toId) => (e) => {
   videoElement.playsInline = true
   videoElement.id = toId
 }
+function showMessage(message){
+  let newChild = document.createElement("li")
+  newChild.textContent = message
+  sel("ol.message-logs").appendChild(newChild)
+}
 function trace(message){
+  showMessage(message)
   console.log(`[INFO]: ${message}`)
 }
 
@@ -42,11 +48,6 @@ function traceImportant(message){
 }
 function traceObject(object){
   console.log(object)
-}
-function showMessage(message){
-  let newChild = document.createElement("li")
-  newChild.textContent = message
-  sel("ol.message-logs").appendChild(newChild)
 }
 
 const createIceChangeHandler = (toId) => (event) => {
