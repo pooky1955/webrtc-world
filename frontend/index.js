@@ -25,6 +25,7 @@ const createAddRemoteStreamHandler = (toId) => (e) => {
   sel("div.video-container").appendChild(videoElement)
   videoElement.srcObject = remoteStream
   videoElement.autoplay = true
+  videoElement.playsInline = true
   videoElement.id = toId
 }
 function trace(message){
